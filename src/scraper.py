@@ -795,8 +795,6 @@ class CraigslistScraper(Scraper):
                     "bedrooms": 1,
                     "min_price": price_min,
                     "max_price": price_max,
-                    "availabilityMode": 0,
-                    "sale_date": "all+dates",
                 })
                 url = f"{self.base_url}/search/{area}/apa?{params}"
                 log.info("Craigslist: fetching %s", url)

@@ -54,15 +54,18 @@ def _send(html: str, subject: str, email_config: dict) -> None:
     msg["To"] = address
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
-        if app_password:
-            server.login(address, app_password)
-        server.sendmail(address, [address], msg.as_string())
-    log.info("Email sent to %s (%s)", address, subject)
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            if app_password:
+                server.login(address, app_password)
+            server.sendmail(address, [address], msg.as_string())
+        log.info("Email sent to %s (%s)", address, subject)
+    except OSError as exc:
+        log.error("Email send failed (SMTP unreachable — check DO firewall): %s", exc)
 
 
 # ---------------------------------------------------------------------------

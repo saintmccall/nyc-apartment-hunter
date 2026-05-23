@@ -762,6 +762,160 @@ def _deep_get(obj: Any, *keys: str) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# Apartments.com — Next.js embedded JSON + Playwright fallback
+# ---------------------------------------------------------------------------
+
+_APT_CARD_SELECTORS = [
+    "article[data-testid='property-card']",
+    "li[data-testid='listing-card']",
+    "div[data-listing-id]",
+    "article.property-card",
+    "li.search-result-item",
+]
+_APT_WAIT_SELECTOR = "article[data-testid='property-card'], div[data-listing-id]"
+_APT_JSON_PATHS = [
+    ("props", "pageProps", "listings"),
+    ("props", "pageProps", "searchResults", "listings"),
+    ("props", "pageProps", "results"),
+    ("props", "pageProps", "propertyList"),
+]
+_APT_HOODS = [h.lower() for h in [
+    "Lower East Side", "Greenwich Village", "NoLita", "East Village",
+    "West Village", "NoHo", "SoHo", "Chelsea", "Flatiron", "Murray Hill",
+    "Midtown East", "Midtown West", "Kips Bay", "Gramercy", "Hell's Kitchen",
+    "Tudor City", "Upper East Side",
+]]
+
+
+class ApartmentsScraper(Scraper):
+    source_name = "apartments"
+    base_url = "https://www.apartments.com"
+
+    async def search(self, criteria: dict[str, Any]) -> list[Listing]:
+        price_min = criteria.get("price_min", 3000)
+        price_max = criteria.get("price_max", 4500)
+        url = f"{self.base_url}/manhattan-new-york-ny/1-bedrooms/?minRent={price_min}&maxRent={price_max}"
+
+        # Layer 1: httpx
+        listings: list[Listing] = []
+        async with httpx.AsyncClient() as client:
+            await self._load_robots(client)
+            html = await self.fetch(client, url, referer=self.base_url)
+            if html:
+                listings = self._parse_embedded_json(html) or self.parse(html, url)
+
+        # Layer 2: Playwright fallback
+        if not listings:
+            log.info("Apartments.com: trying Playwright fallback")
+            html = await _playwright_fetch(url, _APT_WAIT_SELECTOR, timeout=15000)
+            if html:
+                listings = self._parse_embedded_json(html) or self.parse(html, url)
+
+        listings = [l for l in listings if self._in_target_hood(l)]
+        log.info("Apartments.com: %d listing(s) in target neighborhoods", len(listings))
+        return listings
+
+    def _parse_embedded_json(self, html: str) -> list[Listing]:
+        data = _extract_next_data(html)
+        if not data:
+            return []
+        raw_list = None
+        for path in _APT_JSON_PATHS:
+            candidate = _deep_get(data, *path)
+            if isinstance(candidate, list) and candidate:
+                raw_list = candidate
+                break
+        if not raw_list:
+            return []
+        listings = []
+        for item in raw_list:
+            try:
+                listings.append(self._from_json(item))
+            except Exception as exc:
+                log.debug("Apartments.com JSON parse error: %s", exc)
+        return listings
+
+    def _from_json(self, item: dict) -> Listing:
+        lid = str(item.get("id") or item.get("listingId") or "")
+        url = item.get("url") or item.get("detailUrl") or ""
+        if url and not url.startswith("http"):
+            url = f"{self.base_url}{url}"
+        if not lid:
+            lid = "apt-" + hashlib.md5(url.encode()).hexdigest()[:12]
+        price_raw = item.get("price") or item.get("minRent") or item.get("priceDisplay") or "0"
+        price = _parse_price(str(price_raw))
+        address = item.get("address") or item.get("streetAddress") or ""
+        neighborhood = item.get("neighborhood") or _extract_neighborhood_from_address(address)
+        text = json.dumps(item).lower()
+        return Listing(
+            id=lid,
+            source="apartments",
+            url=url,
+            title=address,
+            price=price,
+            bedrooms=1.0,
+            neighborhood=neighborhood,
+            address=address,
+            description=item.get("description") or "",
+            has_broker_fee=_detect_broker_fee(text),
+        )
+
+    def parse(self, html: str, page_url: str) -> list[Listing]:
+        soup = BeautifulSoup(html, "lxml")
+        cards: list[Tag] = []
+        for sel in _APT_CARD_SELECTORS:
+            cards = soup.select(sel)
+            if cards:
+                break
+        listings = []
+        for card in cards:
+            try:
+                listings.append(self._parse_card(card))
+            except Exception as exc:
+                log.debug("Apartments.com card parse error: %s", exc)
+        return listings
+
+    def _parse_card(self, card: Tag) -> Listing:
+        lid = card.get("data-listing-id") or card.get("data-id") or ""
+        link = card.select_one("a[href*='/m/'], a[href*='apartments.com']")
+        url = link["href"] if link else ""
+        if url and not url.startswith("http"):
+            url = f"{self.base_url}{url}"
+        if not lid:
+            lid = "apt-" + hashlib.md5(url.encode()).hexdigest()[:12]
+
+        price_tag = (
+            card.select_one("[data-testid='price']")
+            or card.select_one(".price-range")
+            or card.select_one("[class*='price']")
+        )
+        price = _parse_price(price_tag.get_text(strip=True)) if price_tag else 0
+
+        addr_tag = card.select_one("address, [data-testid='address'], h2, h3")
+        address = addr_tag.get_text(strip=True) if addr_tag else ""
+        neighborhood = _extract_neighborhood_from_address(address)
+
+        return Listing(
+            id=str(lid),
+            source="apartments",
+            url=url,
+            title=address,
+            price=price,
+            bedrooms=1.0,
+            neighborhood=neighborhood,
+            address=address,
+            description=card.get_text(" ", strip=True)[:300],
+            has_broker_fee=_detect_broker_fee(card.get_text().lower()),
+        )
+
+    def _in_target_hood(self, listing: Listing) -> bool:
+        if listing.neighborhood:
+            return True
+        combined = (listing.title + " " + listing.address + " " + listing.description).lower()
+        return any(h in combined for h in _APT_HOODS)
+
+
+# ---------------------------------------------------------------------------
 # Craigslist — public RSS feed, no browser needed
 # ---------------------------------------------------------------------------
 
@@ -925,6 +1079,7 @@ _SCRAPERS: dict[str, type[Scraper]] = {
     "zillow": ZillowScraper,
     "renthop": RentHopScraper,
     "craigslist": CraigslistScraper,
+    "apartments": ApartmentsScraper,
 }
 
 

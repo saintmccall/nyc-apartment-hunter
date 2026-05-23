@@ -45,6 +45,9 @@ sources:
   - name: craigslist
     enabled: true
     priority: 4
+  - name: apartments
+    enabled: true
+    priority: 5
 
 notifications:
   email:

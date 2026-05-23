@@ -1,0 +1,65 @@
+# NYC Apartment Hunter — config.yaml
+# Generated 5/23/2026
+
+search:
+  borough: Manhattan
+  bedrooms: 1
+  price_min: 3000
+  price_max: 4500
+  neighborhoods:
+    - "Lower East Side"
+    - "Greenwich Village"
+    - "NoLita"
+    - "East Village"
+    - "West Village"
+    - "NoHo"
+    - "SoHo"
+    - "Chelsea"
+    - "Flatiron"
+    - "Murray Hill"
+    - "Midtown East"
+    - "Midtown West"
+    - "Kips Bay"
+    - "Gramercy"
+    - "Hell's Kitchen"
+    - "Tudor City"
+    - "Upper East Side"
+  deal_breakers:
+    - "No basement units"
+  nice_to_haves: []
+
+schedule:
+  interval_minutes: 10
+  quiet_hours: "23:00-07:00"
+
+sources:
+  - name: streeteasy
+    enabled: true
+    priority: 1
+  - name: zillow
+    enabled: true
+    priority: 2
+  - name: renthop
+    enabled: true
+    priority: 3
+  - name: craigslist
+    enabled: true
+    priority: 4
+
+notifications:
+  email:
+    enabled: true
+    address: ""       # set via HUNTER_EMAIL_ADDRESS in .env
+    app_password: ""  # set via HUNTER_EMAIL_APP_PASSWORD in .env
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    min_score: 6   # Only notify for 6+/10 matches
+    digest: true   # true = queue all day, send one email at 8am; false = send immediately
+
+scoring:
+  model: claude-sonnet-4-20250514
+  evaluate:
+    - listing_accuracy   # Flag misleading descriptions
+    - value_score        # Price vs comparable units
+    - commute_estimate   # Proximity to transit
+    - red_flags          # Broker fees, flex rooms, etc.

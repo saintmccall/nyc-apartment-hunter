@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Apartment Hunter</title>
+<style>
+  /* Reset */
+  body { margin: 0; padding: 0; background: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1a2e; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Layout */
+  .wrapper    { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
+  .header     { background: #1a1a2e; border-radius: 12px 12px 0 0; padding: 28px 32px; }
+  .header h1  { margin: 0 0 4px; font-size: 22px; color: #ffffff; letter-spacing: -0.3px; }
+  .header p   { margin: 0; font-size: 13px; color: #8892b0; }
+  .body       { background: #ffffff; border-radius: 0 0 12px 12px; padding: 24px 32px; }
+  .footer     { margin-top: 20px; text-align: center; font-size: 11px; color: #9ba3af; }
+
+  /* Card */
+  .card            { border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+  .card-header     { display: flex; justify-content: space-between; align-items: flex-start; padding: 16px 20px 12px; border-bottom: 1px solid #f3f4f6; }
+  .card-title      { font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 4px; }
+  .card-meta       { font-size: 13px; color: #6b7280; margin: 0; }
+  .card-body       { padding: 14px 20px; }
+  .card-footer     { padding: 12px 20px; background: #f9fafb; border-top: 1px solid #f3f4f6; }
+
+  /* Score badge */
+  .badge           { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .badge-high      { background: #d1fae5; color: #065f46; }   /* 8-10 */
+  .badge-mid       { background: #fef3c7; color: #92400e; }   /* 6-7  */
+  .badge-low       { background: #fee2e2; color: #991b1b; }   /* 1-5  */
+
+  /* Price */
+  .price           { font-size: 20px; font-weight: 700; color: #111827; }
+  .price-sub       { font-size: 12px; color: #9ca3af; margin-left: 4px; }
+
+  /* Summary */
+  .summary         { font-size: 14px; color: #374151; line-height: 1.55; margin: 0 0 12px; }
+
+  /* Tags */
+  .tag-list        { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+  .tag             { font-size: 12px; padding: 3px 9px; border-radius: 4px; }
+  .tag-red         { background: #fee2e2; color: #b91c1c; }
+  .tag-green       { background: #d1fae5; color: #047857; }
+
+  .section-label   { font-size: 11px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #9ca3af; margin: 0 0 4px; }
+
+  /* CTA button */
+  .btn             { display: inline-block; padding: 9px 20px; background: #1a1a2e; color: #ffffff !important; border-radius: 6px; font-size: 13px; font-weight: 600; }
+
+  /* Divider */
+  .divider         { border: none; border-top: 1px solid #f3f4f6; margin: 20px 0; }
+
+  /* Source chip */
+  .source          { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>NYC Apartment Hunter</h1>
+    <p>{{ date }} &nbsp;·&nbsp; {{ listings | length }} new match{{ "es" if listings | length != 1 else "" }} scoring 6+/10</p>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+
+    {% for item in listings %}
+    {% set r = item.result %}
+    {% set l = item.listing %}
+
+    {% set score = r.score | int %}
+    {% if score >= 8 %}{% set badge_class = "badge-high" %}
+    {% elif score >= 6 %}{% set badge_class = "badge-mid" %}
+    {% else %}{% set badge_class = "badge-low" %}{% endif %}
+
+    <div class="card">
+
+      <!-- Card header: title + score badge -->
+      <div class="card-header">
+        <div style="flex:1; min-width:0; padding-right:12px;">
+          <p class="card-title">{{ l.title or l.address or "Untitled listing" }}</p>
+          <p class="card-meta">
+            <span class="source">{{ l.source }}</span>
+            &nbsp;·&nbsp; {{ l.neighborhood }}
+            {% if l.address %}&nbsp;·&nbsp; {{ l.address }}{% endif %}
+          </p>
+        </div>
+        <span class="badge {{ badge_class }}">{{ score }}&thinsp;/&thinsp;10</span>
+      </div>
+
+      <!-- Card body -->
+      <div class="card-body">
+
+        <!-- Price row -->
+        <p style="margin:0 0 12px;">
+          <span class="price">${{ "{:,}".format(l.price) }}</span>
+          <span class="price-sub">/mo</span>
+          {% if l.has_broker_fee is not none %}
+          &nbsp;
+          {% if l.has_broker_fee %}
+            <span class="tag tag-red" style="display:inline;">Broker fee</span>
+          {% else %}
+            <span class="tag tag-green" style="display:inline;">No fee</span>
+          {% endif %}
+          {% endif %}
+        </p>
+
+        <!-- Summary -->
+        {% if r.summary %}
+        <p class="summary">{{ r.summary }}</p>
+        {% endif %}
+
+        <!-- Red flags -->
+        {% if r.red_flags %}
+        <p class="section-label">Red flags</p>
+        <div class="tag-list">
+          {% for flag in r.red_flags %}<span class="tag tag-red">{{ flag }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Highlights -->
+        {% if r.highlights %}
+        <p class="section-label" style="margin-top:10px;">Highlights</p>
+        <div class="tag-list">
+          {% for h in r.highlights %}<span class="tag tag-green">{{ h }}</span>{% endfor %}
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- Card footer: CTA -->
+      <div class="card-footer">
+        <a href="{{ l.url }}" class="btn">View listing &rarr;</a>
+      </div>
+
+    </div>
+    {% endfor %}
+
+    <p style="font-size:13px;color:#6b7280;margin:0;">
+      Listings are scored automatically by Claude. Scores reflect estimated value and listing quality — always verify details directly.
+    </p>
+
+  </div>
+
+  <div class="footer">
+    NYC Apartment Hunter &nbsp;·&nbsp; <a href="https://github.com/saintmccall/nyc-apartment-hunter">GitHub</a>
+  </div>
+
+</div>
+</body>
+</html>

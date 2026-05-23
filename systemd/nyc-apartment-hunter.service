@@ -1,0 +1,17 @@
+[Unit]
+Description=NYC Apartment Hunter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+EnvironmentFile=__PROJECT_DIR__/.env
+ExecStart=__PROJECT_DIR__/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=60
+StandardOutput=append:__PROJECT_DIR__/data/hunter.log
+StandardError=append:__PROJECT_DIR__/data/hunter.log
+
+[Install]
+WantedBy=multi-user.target

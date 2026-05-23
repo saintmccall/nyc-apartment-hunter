@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nyc-apartment-hunter"
+version = "0.1.0"
+description = "Automated NYC apartment listing scraper and scorer"
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.2",
+    "pyyaml>=6.0",
+    "sqlite-utils>=3.36",
+    "anthropic>=0.28",
+    "jinja2>=3.1",
+]
+
+[project.scripts]
+nyc-hunter = "main:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+browser = [
+    "playwright>=1.44",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

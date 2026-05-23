@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+  <key>Label</key>
+  <string>com.nyc-apartment-hunter</string>
+
+  <!-- Run the wrapper script every 10 minutes -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PROJECT_DIR__/.venv/bin/python</string>
+    <string>__PROJECT_DIR__/main.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_DIR__</string>
+
+  <!-- Every 10 minutes (600 seconds) -->
+  <key>StartInterval</key>
+  <integer>600</integer>
+
+  <!-- Environment variables (filled in by setup.sh) -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ANTHROPIC_API_KEY</key>
+    <string>__ANTHROPIC_API_KEY__</string>
+    <key>HUNTER_EMAIL_ADDRESS</key>
+    <string>__HUNTER_EMAIL_ADDRESS__</string>
+    <key>HUNTER_EMAIL_APP_PASSWORD</key>
+    <string>__HUNTER_EMAIL_APP_PASSWORD__</string>
+    <key>PATH</key>
+    <string>__PROJECT_DIR__/.venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <!-- Log stdout/stderr to data/ -->
+  <key>StandardOutPath</key>
+  <string>__PROJECT_DIR__/data/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__PROJECT_DIR__/data/launchd.err.log</string>
+
+  <!-- Restart if it crashes -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>Crashed</key>
+    <true/>
+  </dict>
+
+  <!-- Don't run if on battery below 20% -->
+  <key>LowPriorityIO</key>
+  <true/>
+
+</dict>
+</plist>
